@@ -12,4 +12,7 @@ enum AppConstants : String {
     // GalleryVC
     case myGalleryTableViewNavigationTitle = "My Gallery"
     
+    //Empty Table Message
+    case emptyTableViewMessageTitle = "It's empty. Add something!"
+    
 }
