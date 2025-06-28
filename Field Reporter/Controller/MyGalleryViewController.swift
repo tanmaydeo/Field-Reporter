@@ -12,7 +12,7 @@ class MyGalleryViewController: UIViewController {
     private var myGalleryTableView: UITableView = UITableView()
     private lazy var emptyDataView: EmptyDataView = EmptyDataView(inputMessage: AppConstants.emptyTableViewMessageTitle.rawValue)
     
-    private var myGalleryItems: [String] = [] //["Hii", "Hello", "Good Morning cheq team", "Good night"]
+    private var myGalleryItems: [String] = []
     
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
@@ -30,6 +30,10 @@ class MyGalleryViewController: UIViewController {
     private func setupNavigationBar() {
         navigationItem.title = AppConstants.myGalleryTableViewNavigationTitle.rawValue
         navigationController?.navigationBar.prefersLargeTitles = true
+        
+        //UIImage(systemName: "plus")
+        let rightBarButton = UIBarButtonItem(title: "Add new" , style: .plain, target: self, action: #selector(captureVideo))
+        navigationItem.rightBarButtonItem = rightBarButton
     }
     
     private func setupStyles() {
@@ -81,3 +85,21 @@ extension MyGalleryViewController : UITableViewDelegate, UITableViewDataSource {
     }
 }
 
+// MARK: @objc functions
+extension MyGalleryViewController {
+    
+    @objc func captureVideo() {
+        let cameraVC = CameraViewController()
+        cameraVC.delegate = self
+        cameraVC.modalPresentationStyle = .fullScreen
+        present(cameraVC, animated: true)
+    }
+}
+
+extension MyGalleryViewController : CameraViewControllerDelegate {
+    
+    func cameraViewController(_ controller: CameraViewController, didFinishRecordingTo url: URL) {
+        print("The video url is \(url)")
+    }
+    
+}
