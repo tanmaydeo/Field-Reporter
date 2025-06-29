@@ -8,7 +8,9 @@
 import Foundation
 
 struct VideoModel {
+    let id : UUID
     let title : String
     let description : String
-    let thumbnail : String
+    let path : String
+    let date : Date
 }

@@ -12,7 +12,7 @@ class VideoPlayerManager {
     
     private(set) var player: AVPlayer?
     private(set) var playerLayer: AVPlayerLayer?
-    private(set) var isPlaying: Bool = false
+    var isPlaying: Bool = false
     
     func prepare(with url: URL) {
         player = AVPlayer(url: url)
