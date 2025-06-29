@@ -65,7 +65,9 @@ final class CameraViewController: UIViewController {
         recordButton.titleLabel?.font = UIFont.boldSystemFont(ofSize: 14)
         recordButton.setTitle("Record", for: .normal)
         recordButton.setTitleColor(.black, for: .normal)
-        recordButton.addTarget(self, action: #selector(toggleRecording), for: .touchUpInside)
+        recordButton.addTarget(self, action: #selector(startRecording), for: .touchDown)
+        recordButton.addTarget(self, action: #selector(stopRecording), for: [.touchUpInside, .touchUpOutside, .touchCancel])
+
         
         // Dismiss Button
         dismissButton.setImage(UIImage(systemName: "xmark"), for: .normal)
@@ -135,6 +137,35 @@ final class CameraViewController: UIViewController {
     
     // MARK: - User Interaction
     
+    @objc func startRecording() {
+        sessionQueue.async {
+            if !self.videoOutput.isRecording {
+                let outputURL = FileManager.default.temporaryDirectory
+                    .appendingPathComponent(UUID().uuidString)
+                    .appendingPathExtension("mov")
+                
+                self.videoOutput.startRecording(to: outputURL, recordingDelegate: self)
+                
+                DispatchQueue.main.async {
+                    self.recordButton.setTitle("Recording...", for: .normal)
+                    self.recordButton.backgroundColor = .red
+                }
+            }
+        }
+    }
+    
+    @objc func stopRecording() {
+        sessionQueue.async {
+            if self.videoOutput.isRecording {
+                self.videoOutput.stopRecording()
+                DispatchQueue.main.async {
+                    self.recordButton.setTitle("Record", for: .normal)
+                    self.recordButton.backgroundColor = .white
+                }
+            }
+        }
+    }
+    
     @objc func toggleRecording() {
         sessionQueue.async {
             if self.videoOutput.isRecording {
@@ -156,6 +187,10 @@ final class CameraViewController: UIViewController {
         }
     }
     
+    @objc func doSomething() {
+        print("Hii")
+    }
+    
     @objc func dismissView() {
         self.navigationController?.popViewController(animated: true)
     }
@@ -173,6 +208,7 @@ extension CameraViewController: AVCaptureFileOutputRecordingDelegate {
                 print("Recording error: \(error.localizedDescription)")
             } else {
 //                self.delegate?.cameraViewController(didFinishRecordingTo: outputFileURL)
+                print(outputFileURL)
                 self.navigationController?.pushViewController(VideoPreviewViewController(videoURL: outputFileURL), animated: false)
             }
         }

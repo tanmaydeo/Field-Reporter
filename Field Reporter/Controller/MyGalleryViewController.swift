@@ -14,14 +14,6 @@ class MyGalleryViewController: UIViewController {
     
     private var myGalleryItems: [VideoModel] = [
         VideoModel(title: "Lorem", description: "a smaller, representative selection taken from a larger group (population) to study or analyze its characteristics", thumbnail: ""),
-        VideoModel(title: "Lorem2", description: "a smaller, representative selection taken from a larger group (population) to study or analyze its characteristics a smaller, representative selection taken from a larger group (population) to study or analyze its characteristics", thumbnail: ""),
-        VideoModel(title: "Lorem3", description: "a smaller, representative selection taken", thumbnail: ""),
-        VideoModel(title: "Lorem", description: "a smaller, representative selection taken from a larger group (population) to study or analyze its characteristics", thumbnail: ""),
-        VideoModel(title: "Lorem2", description: "a smaller, representative selection taken from a larger group (population) to study or analyze its characteristics a smaller, representative selection taken from a larger group (population) to study or analyze its characteristics", thumbnail: ""),
-        VideoModel(title: "Lorem3", description: "a smaller, representative selection taken", thumbnail: ""),
-        VideoModel(title: "Lorem", description: "a smaller, representative selection taken from a larger group (population) to study or analyze its characteristics", thumbnail: ""),
-        VideoModel(title: "Lorem2", description: "a smaller, representative selection taken from a larger group (population) to study or analyze its characteristics a smaller, representative selection taken from a larger group (population) to study or analyze its characteristics", thumbnail: ""),
-        VideoModel(title: "Lorem3", description: "a smaller, representative selection taken", thumbnail: "")
     ]
     
     override func viewWillAppear(_ animated: Bool) {

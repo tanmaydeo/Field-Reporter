@@ -6,28 +6,23 @@
 //
 
 import UIKit
+import AVFoundation
 
 class VideoPreviewViewController: UIViewController {
-
-    var videoURL : URL
     
+    // MARK: - Properties
+    
+    private let videoURL: URL
     private let dismissButton = UIButton(type: .system)
-    private let videoPlayerView : UIView = UIView()
-    private let saveAsButton : RedCustomButton = RedCustomButton()
+    private let videoContainerView = UIView()
+    private let saveAsButton = RedCustomButton()
+    private let videoThumbnailImageView : UIImageView = UIImageView()
     
-    override func viewWillAppear(_ animated: Bool) {
-        super.viewWillAppear(animated)
-        setupNavBar()
-    }
+    private let playerManager = VideoPlayerManager()
     
-    override func viewDidLoad() {
-        super.viewDidLoad()
-        setupHierarchy()
-        setupStyles()
-        setupConstraints()
-    }
+    // MARK: - Lifecycle
     
-    init(videoURL : URL) {
+    init(videoURL: URL) {
         self.videoURL = videoURL
         super.init(nibName: nil, bundle: nil)
     }
@@ -36,58 +31,121 @@ class VideoPreviewViewController: UIViewController {
         fatalError("init(coder:) has not been implemented")
     }
     
-    private func setupNavBar() {
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
         navigationController?.navigationBar.isHidden = true
     }
     
-    private func setupHierarchy() {
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        setupView()
+        preparePlayer()
+    }
+    
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        setupPlayerLayer()
+    }
+    
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        playerManager.playerLayer?.frame = videoContainerView.bounds
+    }
+    
+    func setupView() {
+        view.backgroundColor = .systemBackground
+        setupHierarchy()
+        setupStyles()
+        setupConstraints()
+    }
+    
+    func setupHierarchy() {
         view.addSubview(dismissButton)
-        view.addSubview(videoPlayerView)
+        view.addSubview(videoContainerView)
+        videoContainerView.addSubview(videoThumbnailImageView)
         view.addSubview(saveAsButton)
     }
     
-    private func setupStyles() {
-        view.backgroundColor = .systemBackground
-        
+    func setupStyles() {
         // Dismiss Button
         dismissButton.setImage(UIImage(systemName: "xmark"), for: .normal)
         dismissButton.tintColor = .label
-        dismissButton.addTarget(self, action: #selector(dismissView), for: .touchUpInside)
+        dismissButton.addTarget(self, action: #selector(didTapDismiss), for: .touchUpInside)
         
-        //VideoPlayerView
-        videoPlayerView.backgroundColor = .black
+        // Video Container
+        videoContainerView.backgroundColor = .black
         
-        //saveAsButton
+        // Save As Button
         saveAsButton.setTitle("Save as", for: .normal)
+        saveAsButton.addTarget(self, action: #selector(didTapSaveAsButton), for: .touchUpInside)
+        
+        //Thumbnail
+        videoThumbnailImageView.contentMode = .scaleAspectFill
+        videoThumbnailImageView.clipsToBounds = true
     }
-
-    private func setupConstraints() {
+    
+    func setupConstraints() {
         dismissButton.translatesAutoresizingMaskIntoConstraints = false
-        videoPlayerView.translatesAutoresizingMaskIntoConstraints = false
+        videoContainerView.translatesAutoresizingMaskIntoConstraints = false
         saveAsButton.translatesAutoresizingMaskIntoConstraints = false
+        videoThumbnailImageView.translatesAutoresizingMaskIntoConstraints = false
+        
         NSLayoutConstraint.activate([
             dismissButton.topAnchor.constraint(equalTo: view.layoutMarginsGuide.topAnchor, constant: 12),
             dismissButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
             dismissButton.widthAnchor.constraint(equalToConstant: 40),
             dismissButton.heightAnchor.constraint(equalToConstant: 40),
             
-            videoPlayerView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            videoPlayerView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            videoPlayerView.topAnchor.constraint(equalTo: dismissButton.bottomAnchor, constant: 16),
-            videoPlayerView.bottomAnchor.constraint(equalTo: saveAsButton.topAnchor, constant: -16),
+            videoContainerView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            videoContainerView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            videoContainerView.topAnchor.constraint(equalTo: dismissButton.bottomAnchor, constant: 16),
+            videoContainerView.bottomAnchor.constraint(equalTo: saveAsButton.topAnchor, constant: -16),
             
             saveAsButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 24),
             saveAsButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -24),
             saveAsButton.bottomAnchor.constraint(equalTo: view.layoutMarginsGuide.bottomAnchor, constant: -16),
-            saveAsButton.heightAnchor.constraint(equalToConstant: 40)
+            saveAsButton.heightAnchor.constraint(equalToConstant: 40),
+            
+            videoThumbnailImageView.leadingAnchor.constraint(equalTo: videoContainerView.leadingAnchor),
+            videoThumbnailImageView.trailingAnchor.constraint(equalTo: videoContainerView.trailingAnchor),
+            videoThumbnailImageView.topAnchor.constraint(equalTo: videoContainerView.topAnchor),
+            videoThumbnailImageView.bottomAnchor.constraint(equalTo: videoContainerView.bottomAnchor)
         ])
     }
 }
 
-extension VideoPreviewViewController {
+private extension VideoPreviewViewController {
     
-    @objc func dismissView() {
+    func preparePlayer() {
+        playerManager.prepare(with: videoURL)
+        playerManager.generateThumbnail(for: videoURL) { [weak self] image in
+            DispatchQueue.main.async {
+                self?.videoThumbnailImageView.image = image
+            }
+        }
+    }
+    
+    func setupPlayerLayer() {
+        guard let playerLayer = playerManager.playerLayer else { return }
+        videoContainerView.layer.insertSublayer(playerLayer, below: videoThumbnailImageView.layer)
+        playerLayer.frame = videoContainerView.bounds
+    }
+
+}
+
+private extension VideoPreviewViewController {
+    
+    @objc func didTapDismiss() {
+        playerManager.stop()
         self.navigationController?.popViewController(animated: false)
     }
     
+    @objc func didTapSaveAsButton() {
+        playerManager.togglePlayPause()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            UIView.animate(withDuration: 0.25) {
+                self.videoThumbnailImageView.alpha = 0
+            }
+        }
+    }
 }
