@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct VideoManager {
+struct VideoRecordManager {
     
     private let _videoRepository : VideoRecordRepository = VideoRecordRepository()
     
@@ -17,5 +17,9 @@ struct VideoManager {
     
     func fetch() -> [VideoModel] {
         return _videoRepository.getAll()
+    }
+    
+    func delete(id : UUID) -> Bool {
+        return _videoRepository.delete(id)
     }
 }

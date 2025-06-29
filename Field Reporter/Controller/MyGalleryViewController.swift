@@ -12,14 +12,14 @@ class MyGalleryViewController: UIViewController {
     private var myGalleryTableView: UITableView = UITableView()
     private lazy var emptyDataView: EmptyDataView = EmptyDataView(inputMessage: AppConstants.emptyTableViewMessageTitle.rawValue)
     
-    private let videoManager : VideoManager = VideoManager()
+    private let videoRecordManager : VideoRecordManager = VideoRecordManager()
     
     private var myGalleryItems: [VideoModel] = []
     
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         setupNavigationBar()
-        myGalleryItems = videoManager.fetch()
+        myGalleryItems = videoRecordManager.fetch()
         updateViewVisibility()
     }
     
@@ -90,13 +90,29 @@ extension MyGalleryViewController : UITableViewDelegate, UITableViewDataSource {
         commonCell.configureCell(myGalleryItems[indexPath.row])
         return commonCell
     }
+    
+    func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCell.EditingStyle, forRowAt indexPath: IndexPath) {
+        if editingStyle == .delete {
+            print(videoRecordManager.delete(id: myGalleryItems[indexPath.row].id))
+            refreshTableView()
+        }
+    }
+    
 }
 
 // MARK: @objc functions
 extension MyGalleryViewController {
     
     @objc func captureVideo() {
-        let cameraVC = CameraViewController()
+        let cameraVC = VideoPreviewViewController()
         self.navigationController?.pushViewController(cameraVC, animated: true)
+    }
+    
+    private func refreshTableView() {
+        DispatchQueue.main.async {
+            self.myGalleryItems = self.videoRecordManager.fetch()
+            self.myGalleryTableView.reloadData()
+            self.updateViewVisibility()
+        }
     }
 }

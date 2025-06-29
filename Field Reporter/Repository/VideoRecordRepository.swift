@@ -6,10 +6,12 @@
 //
 
 import Foundation
+import CoreData
 
 protocol VideoRepositoryProtocol {
     func create(videoModel : VideoModel)
     func getAll() -> [VideoModel]
+    func delete(_ id : UUID) -> Bool
 }
 
 struct VideoRecordRepository : VideoRepositoryProtocol {
@@ -30,7 +32,7 @@ struct VideoRecordRepository : VideoRepositoryProtocol {
         do {
             let cdVideoRecord = try PersistentStorage.shared.context.fetch(CDVideoRecord.fetchRequest())
             cdVideoRecord.forEach({ videoRecord in
-                let videoRecord = VideoModel(id: videoRecord.id ?? UUID(), title: videoRecord.videoTitle ?? "NA", description: videoRecord.videoDescription ?? "NA", path: videoRecord.videoPath ?? "NA", date: videoRecord.videoDate ?? Date.now)
+                let videoRecord = VideoModel(id: videoRecord.id ?? UUID(), title: videoRecord.videoTitle ?? "NA", description: videoRecord.videoDescription ?? "NA", path: videoRecord.videoPath ?? "NA", date: videoRecord.videoDate ?? Date.now, thumbnail: Data())
                 videoRecordArray.append(videoRecord)
             })
         }
@@ -38,6 +40,29 @@ struct VideoRecordRepository : VideoRepositoryProtocol {
             print(error)
         }
         return videoRecordArray
+    }
+    
+    func delete(_ id: UUID) -> Bool {
+        let cdVideoRecordByID = getCDVideoRecordByID(id)
+        guard let cdVideoRecordByID else {
+            return false
+        }
+        PersistentStorage.shared.context.delete(cdVideoRecordByID)
+        PersistentStorage.shared.saveContext()
+        return true
+    }
+    
+    private func getCDVideoRecordByID(_ id : UUID) -> CDVideoRecord? {
+        let fetchRequest : NSFetchRequest<CDVideoRecord> = CDVideoRecord.fetchRequest()
+        fetchRequest.predicate = NSPredicate(format: "id==%@", id as CVarArg)
+        do {
+            let record = try PersistentStorage.shared.context.fetch(fetchRequest).first
+            return record
+        }
+        catch let error {
+            print(error)
+        }
+        return nil
     }
     
 }
