@@ -9,7 +9,7 @@ import UIKit
 import AVFoundation
 
 protocol CameraViewControllerDelegate: AnyObject {
-    func cameraViewController(_ controller: CameraViewController, didFinishRecordingTo url: URL)
+    func cameraViewController(didFinishRecordingTo url: URL)
 }
 
 final class CameraViewController: UIViewController {
@@ -23,14 +23,24 @@ final class CameraViewController: UIViewController {
     
     private let recordButton = UIButton()
     private let dismissButton = UIButton(type: .system)
+    private var videoTimerLabel : UILabel = UILabel()
     
     private let sessionQueue = DispatchQueue(label: "com.fieldReporter.cameraSession")
+    
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        setupNavBar()
+    }
     
     override func viewDidLoad() {
         super.viewDidLoad()
         setupView()
         configureCaptureSession()
         startSession()
+    }
+    
+    private func setupNavBar() {
+        navigationController?.navigationBar.isHidden = true
     }
     
     private func setupView() {
@@ -147,7 +157,7 @@ final class CameraViewController: UIViewController {
     }
     
     @objc func dismissView() {
-        dismiss(animated: true)
+        self.navigationController?.popViewController(animated: true)
     }
 }
 
@@ -162,9 +172,9 @@ extension CameraViewController: AVCaptureFileOutputRecordingDelegate {
             if let error = error {
                 print("Recording error: \(error.localizedDescription)")
             } else {
-                self.delegate?.cameraViewController(self, didFinishRecordingTo: outputFileURL)
+//                self.delegate?.cameraViewController(didFinishRecordingTo: outputFileURL)
+                self.navigationController?.pushViewController(VideoPreviewViewController(videoURL: outputFileURL), animated: false)
             }
-            self.dismiss(animated: true)
         }
     }
 }

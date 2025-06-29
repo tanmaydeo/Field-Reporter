@@ -12,16 +12,26 @@ class MyGalleryViewController: UIViewController {
     private var myGalleryTableView: UITableView = UITableView()
     private lazy var emptyDataView: EmptyDataView = EmptyDataView(inputMessage: AppConstants.emptyTableViewMessageTitle.rawValue)
     
-    private var myGalleryItems: [String] = []
+    private var myGalleryItems: [VideoModel] = [
+        VideoModel(title: "Lorem", description: "a smaller, representative selection taken from a larger group (population) to study or analyze its characteristics", thumbnail: ""),
+        VideoModel(title: "Lorem2", description: "a smaller, representative selection taken from a larger group (population) to study or analyze its characteristics a smaller, representative selection taken from a larger group (population) to study or analyze its characteristics", thumbnail: ""),
+        VideoModel(title: "Lorem3", description: "a smaller, representative selection taken", thumbnail: ""),
+        VideoModel(title: "Lorem", description: "a smaller, representative selection taken from a larger group (population) to study or analyze its characteristics", thumbnail: ""),
+        VideoModel(title: "Lorem2", description: "a smaller, representative selection taken from a larger group (population) to study or analyze its characteristics a smaller, representative selection taken from a larger group (population) to study or analyze its characteristics", thumbnail: ""),
+        VideoModel(title: "Lorem3", description: "a smaller, representative selection taken", thumbnail: ""),
+        VideoModel(title: "Lorem", description: "a smaller, representative selection taken from a larger group (population) to study or analyze its characteristics", thumbnail: ""),
+        VideoModel(title: "Lorem2", description: "a smaller, representative selection taken from a larger group (population) to study or analyze its characteristics a smaller, representative selection taken from a larger group (population) to study or analyze its characteristics", thumbnail: ""),
+        VideoModel(title: "Lorem3", description: "a smaller, representative selection taken", thumbnail: "")
+    ]
     
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
+        setupNavigationBar()
         updateViewVisibility()
     }
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        setupNavigationBar()
         setupStyles()
         setupHierarchy()
         setupConstraints()
@@ -30,9 +40,10 @@ class MyGalleryViewController: UIViewController {
     private func setupNavigationBar() {
         navigationItem.title = AppConstants.myGalleryTableViewNavigationTitle.rawValue
         navigationController?.navigationBar.prefersLargeTitles = true
+        navigationController?.navigationBar.isHidden = false
         
         //UIImage(systemName: "plus")
-        let rightBarButton = UIBarButtonItem(title: "Add new" , style: .plain, target: self, action: #selector(captureVideo))
+        let rightBarButton = UIBarButtonItem(title: AppConstants.addNewVideoTitle.rawValue , style: .plain, target: self, action: #selector(captureVideo))
         navigationItem.rightBarButtonItem = rightBarButton
     }
     
@@ -47,7 +58,8 @@ class MyGalleryViewController: UIViewController {
         
         myGalleryTableView.dataSource = self
         myGalleryTableView.delegate = self
-        myGalleryTableView.register(UITableViewCell.self, forCellReuseIdentifier: "cell")
+        myGalleryTableView.register(VideoTableViewCell.self, forCellReuseIdentifier: AppConstants.videoCellReusableIdentifier.rawValue)
+        myGalleryTableView.separatorStyle = .none
     }
     
     private func setupConstraints() {
@@ -79,8 +91,11 @@ extension MyGalleryViewController : UITableViewDelegate, UITableViewDataSource {
     }
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let commonCell = myGalleryTableView.dequeueReusableCell(withIdentifier: "cell", for: indexPath)
-        commonCell.textLabel?.text = myGalleryItems[indexPath.row]
+        guard let commonCell = myGalleryTableView.dequeueReusableCell(withIdentifier: AppConstants.videoCellReusableIdentifier.rawValue, for: indexPath) as? VideoTableViewCell else {
+            return UITableViewCell()
+        }
+        commonCell.selectionStyle = .none
+        commonCell.configureCell(myGalleryItems[indexPath.row])
         return commonCell
     }
 }
@@ -91,14 +106,13 @@ extension MyGalleryViewController {
     @objc func captureVideo() {
         let cameraVC = CameraViewController()
         cameraVC.delegate = self
-        cameraVC.modalPresentationStyle = .fullScreen
-        present(cameraVC, animated: true)
+        self.navigationController?.pushViewController(CameraViewController(), animated: true)
     }
 }
 
 extension MyGalleryViewController : CameraViewControllerDelegate {
     
-    func cameraViewController(_ controller: CameraViewController, didFinishRecordingTo url: URL) {
+    func cameraViewController(didFinishRecordingTo url: URL) {
         print("The video url is \(url)")
     }
     

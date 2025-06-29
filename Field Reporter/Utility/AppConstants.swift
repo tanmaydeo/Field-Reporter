@@ -11,6 +11,8 @@ enum AppConstants : String {
     
     // GalleryVC
     case myGalleryTableViewNavigationTitle = "My Gallery"
+    case videoCellReusableIdentifier = "VideoTableViewCell"
+    case addNewVideoTitle = "Add new"
     
     //Empty Table Message
     case emptyTableViewMessageTitle = "It's empty. Add something!"
