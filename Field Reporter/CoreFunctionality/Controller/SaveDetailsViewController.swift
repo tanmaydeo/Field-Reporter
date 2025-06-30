@@ -1,11 +1,9 @@
 //
-//  VideoMetaDataInputViewController.swift
+//  SaveDetailsViewController.swift
 //  Field Reporter
 //
 //  Created by Tanmay Deo on 30/06/25.
 //
-
-import UIKit
 
 import UIKit
 
@@ -25,10 +23,16 @@ class SaveDetailsViewController: UIViewController {
     private let saveButton = RedCustomButton()
     
     // MARK: - Lifecycle
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         setupView()
         addTapGestureToDismissKeyboard()
+    }
+    
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        titleField.becomeFirstResponder()
     }
 }
 
@@ -45,40 +49,26 @@ private extension SaveDetailsViewController {
         view.addSubview(containerView)
         containerView.translatesAutoresizingMaskIntoConstraints = false
         
-        containerView.addSubview(closeButton)
-        closeButton.translatesAutoresizingMaskIntoConstraints = false
-        
-        containerView.addSubview(titleLabel)
-        titleLabel.translatesAutoresizingMaskIntoConstraints = false
-        
-        containerView.addSubview(titleField)
-        titleField.translatesAutoresizingMaskIntoConstraints = false
-        
-        containerView.addSubview(descriptionLabel)
-        descriptionLabel.translatesAutoresizingMaskIntoConstraints = false
-        
-        containerView.addSubview(descriptionField)
-        descriptionField.translatesAutoresizingMaskIntoConstraints = false
-        
-        containerView.addSubview(saveButton)
-        saveButton.translatesAutoresizingMaskIntoConstraints = false
+        [closeButton, titleLabel, titleField, descriptionLabel, descriptionField, saveButton].forEach {
+            $0.translatesAutoresizingMaskIntoConstraints = false
+            containerView.addSubview($0)
+        }
     }
-
     
     func setupStyles() {
-        //View
-        view.backgroundColor = UIColor.black.withAlphaComponent(0.2)
+        // View
+        view.backgroundColor = UIColor.black.withAlphaComponent(0.1) // Lighten for performance
         
         // Container View
         containerView.backgroundColor = .systemBackground
         containerView.layer.cornerRadius = 16
-        containerView.layer.shadowColor = UIColor.white.cgColor
-        containerView.layer.shadowOpacity = 0.05
-        containerView.layer.shadowOffset = CGSize(width: 0, height: 2)
-        containerView.layer.shadowRadius = 8
+         containerView.layer.shadowColor = UIColor.black.cgColor
+         containerView.layer.shadowOpacity = 0.05
+         containerView.layer.shadowOffset = CGSize(width: 0, height: 2)
+         containerView.layer.shadowRadius = 8
         
         // Close Button
-        closeButton.setImage(UIImage(systemName: "xmark.circle.fill"), for: .normal)
+        closeButton.setImage(UIImage(named: "closeIcon")?.withRenderingMode(.alwaysOriginal), for: .normal)
         closeButton.tintColor = .label
         closeButton.addTarget(self, action: #selector(didTapClose), for: .touchUpInside)
         
@@ -97,13 +87,13 @@ private extension SaveDetailsViewController {
         descriptionLabel.text = "Description"
         descriptionLabel.font = .boldSystemFont(ofSize: 16)
         descriptionLabel.textColor = .label
-        descriptionField.delegate = self
         
         // Description Field
         descriptionField.font = .systemFont(ofSize: 15)
         descriptionField.textColor = .label
         descriptionField.backgroundColor = .secondarySystemBackground
         descriptionField.layer.cornerRadius = 8
+        descriptionField.delegate = self
         
         // Save Button
         saveButton.setTitle("Save", for: .normal)
@@ -118,10 +108,10 @@ private extension SaveDetailsViewController {
             containerView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
             containerView.centerYAnchor.constraint(equalTo: view.centerYAnchor),
             
-            closeButton.topAnchor.constraint(equalTo: containerView.topAnchor, constant: 12),
-            closeButton.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -12),
-            closeButton.widthAnchor.constraint(equalToConstant: 30),
-            closeButton.heightAnchor.constraint(equalToConstant: 30),
+            closeButton.topAnchor.constraint(equalTo: containerView.topAnchor, constant: 16),
+            closeButton.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -16),
+            closeButton.widthAnchor.constraint(equalToConstant: 16),
+            closeButton.heightAnchor.constraint(equalToConstant: 16),
             
             titleLabel.topAnchor.constraint(equalTo: closeButton.bottomAnchor, constant: 16),
             titleLabel.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: 16),
@@ -148,7 +138,8 @@ private extension SaveDetailsViewController {
     }
 }
 
-extension SaveDetailsViewController : UITextFieldDelegate, UITextViewDelegate {
+// MARK: - Text Field & Text View Delegates
+extension SaveDetailsViewController: UITextFieldDelegate, UITextViewDelegate {
     
     @objc private func textFieldDidChange() {
         validateInputFields()
@@ -165,7 +156,6 @@ extension SaveDetailsViewController : UITextFieldDelegate, UITextViewDelegate {
         saveButton.isEnabled = !isTitleEmpty && !isDescriptionEmpty
         saveButton.alpha = saveButton.isEnabled ? 1.0 : 0.5
     }
-    
 }
 
 // MARK: - Actions

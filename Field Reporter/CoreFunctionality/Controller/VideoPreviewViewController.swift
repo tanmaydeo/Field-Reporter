@@ -158,14 +158,16 @@ private extension VideoPreviewViewController {
     
     @objc func didTapSaveAsButton() {
         handleVideoTap()
-        let saveDetailsVC = SaveDetailsViewController()
-        saveDetailsVC.onSaveDetails = { [weak self] title, description in
-            self?.viewModel.saveVideo(title: title, description: description) {
-                self?.navigationController?.popToRootViewController(animated: true)
+        DispatchQueue.main.async {
+            let saveDetailsVC = SaveDetailsViewController()
+            saveDetailsVC.onSaveDetails = { [weak self] title, description in
+                self?.viewModel.saveVideo(title: title, description: description) {
+                    self?.navigationController?.popToRootViewController(animated: true)
+                }
             }
+            saveDetailsVC.modalPresentationStyle = .overFullScreen
+            self.present(saveDetailsVC, animated: true)
         }
-        saveDetailsVC.modalPresentationStyle = .overFullScreen
-        present(saveDetailsVC, animated: true)
     }
     
     @objc func didTapPlayButton() {
