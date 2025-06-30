@@ -22,7 +22,7 @@ struct VideoRecordRepository : VideoRepositoryProtocol {
         cdVideoRecord.videoTitle = videoModel.title
         cdVideoRecord.videoDescription = videoModel.description
         cdVideoRecord.videoDate = videoModel.date
-        cdVideoRecord.videoPath = videoModel.path
+        cdVideoRecord.videoPath = videoModel.fileName
         cdVideoRecord.videoThumbnail = videoModel.thumbnail
         cdVideoRecord.videoTimeInterval = videoModel.time
         PersistentStorage.shared.saveContext()
@@ -34,7 +34,7 @@ struct VideoRecordRepository : VideoRepositoryProtocol {
         do {
             let cdVideoRecord = try PersistentStorage.shared.context.fetch(CDVideoRecord.fetchRequest())
             cdVideoRecord.forEach({ videoRecord in
-                let videoRecord = VideoModel(id: videoRecord.id ?? UUID(), title: videoRecord.videoTitle ?? "NA", description: videoRecord.videoDescription ?? "NA", path: videoRecord.videoPath ?? "NA", date: videoRecord.videoDate ?? Date.now, time: videoRecord.videoTimeInterval, thumbnail: videoRecord.videoThumbnail ?? Data())
+                let videoRecord = VideoModel(id: videoRecord.id ?? UUID(), title: videoRecord.videoTitle ?? "NA", description: videoRecord.videoDescription ?? "NA", fileName: videoRecord.videoPath ?? "NA", date: videoRecord.videoDate ?? Date.now, time: videoRecord.videoTimeInterval, thumbnail: videoRecord.videoThumbnail ?? Data())
                 videoRecordArray.insert(videoRecord, at: 0)
             })
         }

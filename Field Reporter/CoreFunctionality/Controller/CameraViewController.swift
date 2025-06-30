@@ -18,13 +18,15 @@ class CameraViewController: UIViewController {
     private let dismissButton = UIButton(type: .custom)
     private let videoTimerLabel = PaddedLabel()
     
+    // MARK: - Preview Layer Added Flag
+    private var isPreviewLayerAdded = false
+    
     // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
         setupView()
         viewModel.delegate = self
         viewModel.checkCameraPermission()
-        viewModel.configureSession()
     }
     
     override func viewWillAppear(_ animated: Bool) {
@@ -62,7 +64,6 @@ class CameraViewController: UIViewController {
         recordButton.addTarget(self, action: #selector(startRecording), for: .touchDown)
         recordButton.addTarget(self, action: #selector(stopRecording), for: [.touchUpInside, .touchUpOutside, .touchCancel])
         recordButton.isEnabled = false
-        recordButton.alpha = 0.5
         
         // Dismiss Button
         dismissButton.setImage(UIImage(systemName: "xmark"), for: .normal)
@@ -101,8 +102,10 @@ class CameraViewController: UIViewController {
     }
     
     private func addPreviewLayer() {
+        guard !isPreviewLayerAdded else { return }
         let previewLayer = viewModel.getPreviewLayer(for: view)
         view.layer.insertSublayer(previewLayer, at: 0)
+        isPreviewLayerAdded = true
     }
     
     // MARK: - Actions
@@ -163,6 +166,19 @@ class CameraViewController: UIViewController {
 // MARK: - CameraViewModelDelegate
 extension CameraViewController: CameraViewModelDelegate {
     
+    func recordingDidFinish(video: VideoModel) {
+        // Retrieve file URL from fileName
+        let videoURL = viewModel.retrieveVideoURL(fileName: video.fileName)
+        let duration = Int(video.time)
+        
+        print("Recording finished. File saved at: \(videoURL.path)")
+        let fileExists = FileManager.default.fileExists(atPath: videoURL.path)
+        print("File exists after recording finished? \(fileExists)")
+        
+        let previewVC = VideoPreviewViewController(videoURL: videoURL, videoTime: duration)
+        navigationController?.pushViewController(previewVC, animated: true)
+    }
+    
     func updateRecordingTime(_ time: String) {
         videoTimerLabel.text = time
     }
@@ -173,6 +189,7 @@ extension CameraViewController: CameraViewModelDelegate {
         let feedback = UIImpactFeedbackGenerator(style: .medium)
         feedback.prepare()
         feedback.impactOccurred()
+        enableRecordingUI(false) // disable during recording
     }
     
     func recordingStopped() {
@@ -180,11 +197,6 @@ extension CameraViewController: CameraViewModelDelegate {
         videoTimerLabel.text = "00:00"
         animateRecordButton(isRecording: false)
         enableRecordingUI(true)
-    }
-    
-    func recordingDidFinish(url: URL, duration: Int) {
-        let previewVC = VideoPreviewViewController(videoURL: url, videoTime: duration)
-        navigationController?.pushViewController(previewVC, animated: false)
     }
     
     func recordingDidFail(with error: Error) {
@@ -195,5 +207,10 @@ extension CameraViewController: CameraViewModelDelegate {
     func cameraPermissionDenied() {
         enableRecordingUI(false)
         showCameraAccessAlert()
+    }
+    
+    func cameraPermissionGranted() {
+        enableRecordingUI(true)
+        viewModel.configureSession()
     }
 }

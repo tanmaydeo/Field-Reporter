@@ -10,21 +10,22 @@ import AVFoundation
 
 protocol CameraViewModelDelegate: AnyObject {
     func updateRecordingTime(_ time: String)
-    func recordingDidFinish(url: URL, duration: Int)
+    func recordingDidFinish(video: VideoModel)
     func recordingDidFail(with error: Error)
     func cameraPermissionDenied()
+    func cameraPermissionGranted()
     func recordingStarted()
     func recordingStopped()
 }
 
 class CameraViewModel: NSObject {
     
-    // MARK: - Properties
     private let captureSession = AVCaptureSession()
     private let videoOutput = AVCaptureMovieFileOutput()
     private var activeVideoInput: AVCaptureDeviceInput?
     private let sessionQueue = DispatchQueue(label: "com.fieldReporter.cameraSession")
     private var previewLayer: AVCaptureVideoPreviewLayer?
+    private var currentRecordingFileName: String?
     
     weak var delegate: CameraViewModelDelegate?
     
@@ -32,10 +33,10 @@ class CameraViewModel: NSObject {
     private var elapsedSeconds = 0
     
     var isRecording: Bool {
-        videoOutput.isRecording
+        return videoOutput.isRecording
     }
     
-    // MARK: - Setup
+    // MARK: - Session Setup
     func configureSession() {
         sessionQueue.async {
             self.captureSession.beginConfiguration()
@@ -90,23 +91,20 @@ class CameraViewModel: NSObject {
         return previewLayer!
     }
     
+    // MARK: - Permission
     func checkCameraPermission() {
         switch AVCaptureDevice.authorizationStatus(for: .video) {
         case .authorized:
-            delegate?.recordingStopped()
+            delegate?.cameraPermissionGranted()
         case .notDetermined:
             AVCaptureDevice.requestAccess(for: .video) { granted in
                 DispatchQueue.main.async {
-                    if granted {
-                        self.delegate?.recordingStopped()
-                    } else {
-                        self.delegate?.cameraPermissionDenied()
-                    }
+                    granted ? self.delegate?.cameraPermissionGranted() : self.delegate?.cameraPermissionDenied()
                 }
             }
         case .denied, .restricted:
             delegate?.cameraPermissionDenied()
-        @unknown default:
+        default:
             delegate?.cameraPermissionDenied()
         }
     }
@@ -115,16 +113,35 @@ class CameraViewModel: NSObject {
     func startRecording() {
         guard !videoOutput.isRecording else { return }
         
-        let outputURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent(UUID().uuidString)
-            .appendingPathExtension("mov")
-        
+        let outputURL = generateUniqueURL()
+        currentRecordingFileName = outputURL.lastPathComponent
         videoOutput.startRecording(to: outputURL, recordingDelegate: self)
     }
     
     func stopRecording() {
         guard videoOutput.isRecording else { return }
         videoOutput.stopRecording()
+    }
+    
+    private func generateUniqueURL() -> URL {
+        let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        let fileName = UUID().uuidString + ".mov"
+        return documentsDirectory.appendingPathComponent(fileName)
+    }
+    
+    func retrieveVideoURL(fileName: String) -> URL {
+        let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        return documentsDirectory.appendingPathComponent(fileName)
+    }
+    
+    private func generateThumbnail(for url: URL) -> UIImage? {
+        let asset = AVAsset(url: url)
+        let generator = AVAssetImageGenerator(asset: asset)
+        generator.appliesPreferredTrackTransform = true
+        
+        let time = CMTime(seconds: 1, preferredTimescale: 60)
+        guard let cgImage = try? generator.copyCGImage(at: time, actualTime: nil) else { return nil }
+        return UIImage(cgImage: cgImage)
     }
     
     // MARK: - Timer
@@ -136,11 +153,7 @@ class CameraViewModel: NSObject {
         recordingTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             guard let self = self else { return }
             self.elapsedSeconds += 1
-            
-            let min = self.elapsedSeconds / 60
-            let sec = self.elapsedSeconds % 60
-            self.delegate?.updateRecordingTime(String(format: "%02d:%02d", min, sec))
-            
+            self.delegate?.updateRecordingTime(String(format: "%02d:%02d", self.elapsedSeconds / 60, self.elapsedSeconds % 60))
             if self.elapsedSeconds >= 30 {
                 self.stopRecording()
             }
@@ -172,9 +185,25 @@ extension CameraViewModel: AVCaptureFileOutputRecordingDelegate {
             self.stopRecordingTimer()
             if let error = error {
                 self.delegate?.recordingDidFail(with: error)
-            } else {
-                self.delegate?.recordingDidFinish(url: outputFileURL, duration: self.elapsedSeconds)
+                return
             }
+            
+            guard let fileName = self.currentRecordingFileName else {
+                self.delegate?.recordingDidFail(with: NSError(domain: "No FileName", code: -1))
+                return
+            }
+            
+            let thumbnail = self.generateThumbnail(for: outputFileURL)?.jpegData(compressionQuality: 0.8) ?? Data()
+            let video = VideoModel(
+                id: UUID(),
+                title: "My Video",
+                description: "Default description",
+                fileName: fileName,
+                date: Date(),
+                time: Int32(self.elapsedSeconds),
+                thumbnail: thumbnail
+            )
+            self.delegate?.recordingDidFinish(video: video)
         }
     }
 }

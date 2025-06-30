@@ -61,7 +61,7 @@ class VideoPreviewViewModel {
             id: UUID(),
             title: title,
             description: description,
-            path: videoURL.absoluteString,
+            fileName: videoURL.absoluteString,
             date: Date(),
             time: Int32(videoTime),
             thumbnail: thumbnailData

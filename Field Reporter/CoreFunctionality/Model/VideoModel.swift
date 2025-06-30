@@ -11,7 +11,7 @@ struct VideoModel {
     let id : UUID
     let title : String
     let description : String
-    let path : String
+    let fileName: String
     let date : Date
     let time : Int32
     let thumbnail : Data
