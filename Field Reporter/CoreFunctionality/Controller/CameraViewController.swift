@@ -10,44 +10,37 @@ import AVFoundation
 
 class CameraViewController: UIViewController {
     
-    // MARK: - AVFoundation Properties
-    private let captureSession = AVCaptureSession()
-    private let videoOutput = AVCaptureMovieFileOutput()
-    private var activeVideoInput: AVCaptureDeviceInput?
-    private var previewLayer: AVCaptureVideoPreviewLayer?
-    private var isSessionConfigured = false
+    // MARK: - ViewModel
+    private let viewModel = CameraViewModel()
     
     // MARK: - UI Elements
     private let recordButton = UIButton()
     private let dismissButton = UIButton(type: .custom)
     private let videoTimerLabel = PaddedLabel()
     
-    // MARK: - Recording Timer
-    private var recordingTimer: Timer?
-    private var elapsedSeconds = 0
-    
-    // MARK: - Other
-    private let sessionQueue = DispatchQueue(label: "com.fieldReporter.cameraSession")
-    
     // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
         setupView()
-        configureCaptureSession()
-        checkCameraPermission()
+        viewModel.delegate = self
+        viewModel.checkCameraPermission()
+        viewModel.configureSession()
     }
     
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         hideNavigationBar()
-        startCaptureSession()
+        resetRecordingUI()
+        viewModel.startSession()
+        addPreviewLayer()
     }
     
     override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
-        stopCaptureSession()
+        viewModel.stopSession()
     }
     
+    // MARK: - UI Setup
     private func setupView() {
         view.backgroundColor = .black
         addSubviews()
@@ -70,7 +63,6 @@ class CameraViewController: UIViewController {
         recordButton.addTarget(self, action: #selector(stopRecording), for: [.touchUpInside, .touchUpOutside, .touchCancel])
         recordButton.isEnabled = false
         recordButton.alpha = 0.5
-
         
         // Dismiss Button
         dismissButton.setImage(UIImage(systemName: "xmark"), for: .normal)
@@ -80,7 +72,7 @@ class CameraViewController: UIViewController {
         // Timer Label
         videoTimerLabel.text = "00:00"
         videoTimerLabel.textColor = .white
-        videoTimerLabel.font = UIFont.systemFont(ofSize: 16, weight: .black)
+        videoTimerLabel.font = UIFont.systemFont(ofSize: 16, weight: .bold)
         videoTimerLabel.backgroundColor = .systemRed
         videoTimerLabel.layer.cornerRadius = 8
         videoTimerLabel.clipsToBounds = true
@@ -107,101 +99,34 @@ class CameraViewController: UIViewController {
             videoTimerLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor)
         ])
     }
-}
-
-// MARK: - Camera Configuration
-extension CameraViewController {
     
-    private func configureCaptureSession() {
-        guard !isSessionConfigured else { return }
-        isSessionConfigured = true
-        
-        sessionQueue.async {
-            self.captureSession.beginConfiguration()
-            self.captureSession.sessionPreset = .high
-            
-            // Camera input
-            if let camera = AVCaptureDevice.default(for: .video),
-               let videoInput = try? AVCaptureDeviceInput(device: camera),
-               self.captureSession.canAddInput(videoInput) {
-                self.captureSession.addInput(videoInput)
-                self.activeVideoInput = videoInput
-            }
-            
-            // Microphone input
-            if let mic = AVCaptureDevice.default(for: .audio),
-               let micInput = try? AVCaptureDeviceInput(device: mic),
-               self.captureSession.canAddInput(micInput) {
-                self.captureSession.addInput(micInput)
-            }
-            
-            // Output
-            if self.captureSession.canAddOutput(self.videoOutput) {
-                self.captureSession.addOutput(self.videoOutput)
-            }
-            
-            self.captureSession.commitConfiguration()
-        }
+    private func addPreviewLayer() {
+        let previewLayer = viewModel.getPreviewLayer(for: view)
+        view.layer.insertSublayer(previewLayer, at: 0)
     }
     
-    private func startCaptureSession() {
-        sessionQueue.async {
-            if !self.captureSession.isRunning {
-                self.captureSession.startRunning()
-                DispatchQueue.main.async {
-                    self.setupPreviewLayer()
-                }
-            }
-        }
+    // MARK: - Actions
+    @objc private func startRecording() {
+        viewModel.startRecording()
     }
     
-    private func stopCaptureSession() {
-        sessionQueue.async {
-            if self.captureSession.isRunning {
-                self.captureSession.stopRunning()
-            }
-        }
+    @objc private func stopRecording() {
+        viewModel.stopRecording()
     }
     
-    private func setupPreviewLayer() {
-        guard previewLayer == nil else { return }
-        
-        let preview = AVCaptureVideoPreviewLayer(session: captureSession)
-        preview.frame = view.bounds
-        preview.videoGravity = .resizeAspectFill
-        view.layer.insertSublayer(preview, at: 0)
-        previewLayer = preview
+    @objc private func dismissView() {
+        navigationController?.popViewController(animated: true)
     }
     
-    private func checkCameraPermission() {
-        switch AVCaptureDevice.authorizationStatus(for: .video) {
-        case .authorized:
-            setupView()
-            configureCaptureSession()
-            enableRecordingUI(true)
-            
-        case .notDetermined:
-            AVCaptureDevice.requestAccess(for: .video) { [weak self] granted in
-                DispatchQueue.main.async {
-                    if granted {
-                        self?.setupView()
-                        self?.configureCaptureSession()
-                        self?.enableRecordingUI(true)
-                    } else {
-                        self?.enableRecordingUI(false)
-                        self?.showCameraAccessAlert()
-                    }
-                }
-            }
-            
-        case .denied, .restricted:
-            enableRecordingUI(false)
-            showCameraAccessAlert()
-            
-        @unknown default:
-            enableRecordingUI(false)
-            showCameraAccessAlert()
-        }
+    private func resetRecordingUI() {
+        videoTimerLabel.isHidden = true
+        videoTimerLabel.text = "00:00"
+        recordButton.transform = .identity
+        recordButton.backgroundColor = .white
+    }
+    
+    private func hideNavigationBar() {
+        navigationController?.navigationBar.isHidden = true
     }
     
     private func enableRecordingUI(_ isEnabled: Bool) {
@@ -216,125 +141,15 @@ extension CameraViewController {
             preferredStyle: .alert
         )
         
-        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel, handler: nil))
-        
-        alert.addAction(UIAlertAction(title: "Settings", style: .default, handler: { _ in
+        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        alert.addAction(UIAlertAction(title: "Settings", style: .default) { _ in
             if let appSettings = URL(string: UIApplication.openSettingsURLString) {
                 UIApplication.shared.open(appSettings)
             }
-        }))
+        })
         
         present(alert, animated: true)
     }
-}
-
-// MARK: - Recording Logic
-extension CameraViewController {
-    
-    @objc private func startRecording() {
-        sessionQueue.async {
-            guard !self.videoOutput.isRecording else { return }
-            
-            let outputURL = FileManager.default.temporaryDirectory
-                .appendingPathComponent(UUID().uuidString)
-                .appendingPathExtension("mov")
-            
-            self.videoOutput.startRecording(to: outputURL, recordingDelegate: self)
-            
-            DispatchQueue.main.async {
-                self.animateRecordButton(isRecording: true)
-                self.videoTimerLabel.isHidden = false
-                
-                let feedbackGenerator = UIImpactFeedbackGenerator(style: .medium)
-                feedbackGenerator.prepare()
-                feedbackGenerator.impactOccurred()
-            }
-        }
-    }
-    
-    @objc private func stopRecording() {
-        sessionQueue.async {
-            guard self.videoOutput.isRecording else { return }
-            
-            self.videoOutput.stopRecording()
-            DispatchQueue.main.async {
-                self.recordingTimer?.invalidate()
-                self.videoTimerLabel.isHidden = true
-                self.videoTimerLabel.text = "00:00"
-                self.animateRecordButton(isRecording: false)
-            }
-        }
-    }
-}
-
-// MARK: - Timer Logic
-extension CameraViewController {
-    
-    private func startRecordingTimer() {
-        recordingTimer?.invalidate()
-        elapsedSeconds = 0
-        updateTimerLabel()
-        
-        recordingTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-            guard let self = self else { return }
-            self.elapsedSeconds += 1
-            self.updateTimerLabel()
-            
-            if self.elapsedSeconds >= 30 {
-                self.recordingTimer?.invalidate()
-                self.stopRecording()
-            }
-        }
-    }
-    
-    private func updateTimerLabel() {
-        let minutes = elapsedSeconds / 60
-        let seconds = elapsedSeconds % 60
-        videoTimerLabel.text = String(format: "%02d:%02d", minutes, seconds)
-    }
-}
-
-// MARK: - AVCaptureFileOutputRecordingDelegate
-extension CameraViewController: AVCaptureFileOutputRecordingDelegate {
-    
-    func fileOutput(_ output: AVCaptureFileOutput,
-                    didFinishRecordingTo outputFileURL: URL,
-                    from connections: [AVCaptureConnection],
-                    error: Error?) {
-        DispatchQueue.main.async {
-            if let error = error {
-                print("Recording error: \(error.localizedDescription)")
-            } else {
-                self.navigationController?.pushViewController(
-                    VideoPreviewViewController(videoURL: outputFileURL, videoTime: self.elapsedSeconds),
-                    animated: false
-                )
-            }
-        }
-    }
-    
-    func fileOutput(_ output: AVCaptureFileOutput,
-                    didStartRecordingTo fileURL: URL,
-                    from connections: [AVCaptureConnection]) {
-        DispatchQueue.main.async {
-            self.startRecordingTimer()
-        }
-    }
-}
-
-// MARK: - Utilities
-extension CameraViewController {
-    private func hideNavigationBar() {
-        navigationController?.navigationBar.isHidden = true
-    }
-    
-    @objc private func dismissView() {
-        navigationController?.popViewController(animated: true)
-    }
-}
-
-// MARK: - Button Animation
-extension CameraViewController {
     
     private func animateRecordButton(isRecording: Bool) {
         let scale: CGFloat = isRecording ? 1.5 : 1.0
@@ -343,5 +158,42 @@ extension CameraViewController {
             self.recordButton.transform = CGAffineTransform(scaleX: scale, y: scale)
         })
     }
+}
+
+// MARK: - CameraViewModelDelegate
+extension CameraViewController: CameraViewModelDelegate {
     
+    func updateRecordingTime(_ time: String) {
+        videoTimerLabel.text = time
+    }
+    
+    func recordingStarted() {
+        videoTimerLabel.isHidden = false
+        animateRecordButton(isRecording: true)
+        let feedback = UIImpactFeedbackGenerator(style: .medium)
+        feedback.prepare()
+        feedback.impactOccurred()
+    }
+    
+    func recordingStopped() {
+        videoTimerLabel.isHidden = true
+        videoTimerLabel.text = "00:00"
+        animateRecordButton(isRecording: false)
+        enableRecordingUI(true)
+    }
+    
+    func recordingDidFinish(url: URL, duration: Int) {
+        let previewVC = VideoPreviewViewController(videoURL: url, videoTime: duration)
+        navigationController?.pushViewController(previewVC, animated: false)
+    }
+    
+    func recordingDidFail(with error: Error) {
+        print("Recording failed: \(error.localizedDescription)")
+        enableRecordingUI(false)
+    }
+    
+    func cameraPermissionDenied() {
+        enableRecordingUI(false)
+        showCameraAccessAlert()
+    }
 }
