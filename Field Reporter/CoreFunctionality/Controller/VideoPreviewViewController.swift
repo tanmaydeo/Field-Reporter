@@ -9,6 +9,7 @@ import UIKit
 import AVFoundation
 
 class VideoPreviewViewController: UIViewController {
+    
     // MARK: - UI Components
     private let dismissButton = UIButton(type: .system)
     private let videoContainerView = UIView()
@@ -17,15 +18,11 @@ class VideoPreviewViewController: UIViewController {
     private let playButton = UIButton(type: .custom)
     
     // MARK: - Properties
-    private let videoURL: URL
-    private let videoTime : Int
-    private let playerManager = VideoPlayerManager()
-    private let videoRecordManager = VideoRecordManager()
+    private let viewModel: VideoPreviewViewModel
     
     // MARK: - Init
-    init(videoURL: URL, videoTime : Int) {
-        self.videoURL = videoURL
-        self.videoTime = videoTime
+    init(videoURL: URL, videoTime: Int) {
+        self.viewModel = VideoPreviewViewModel(videoURL: videoURL, videoTime: videoTime)
         super.init(nibName: nil, bundle: nil)
     }
     
@@ -79,35 +76,28 @@ private extension VideoPreviewViewController {
     }
     
     func setupStyles() {
-        // Dismiss Button
         dismissButton.setImage(UIImage(systemName: "xmark.circle.fill"), for: .normal)
         dismissButton.tintColor = .label
         dismissButton.addTarget(self, action: #selector(didTapDismiss), for: .touchUpInside)
         
-        // Video Container
         videoContainerView.backgroundColor = .black
         videoContainerView.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(handleVideoTap)))
         
-        // Save Button
         saveAsButton.setTitle("Save as", for: .normal)
         saveAsButton.addTarget(self, action: #selector(didTapSaveAsButton), for: .touchUpInside)
         
-        // Thumbnail
         thumbnailImageView.contentMode = .scaleAspectFill
         thumbnailImageView.clipsToBounds = true
         
-        // Play Button
         playButton.setBackgroundImage(UIImage(named: "play"), for: .normal)
         playButton.imageView?.contentMode = .scaleAspectFill
         playButton.addTarget(self, action: #selector(didTapPlayButton), for: .touchUpInside)
     }
     
     func setupConstraints() {
-        dismissButton.translatesAutoresizingMaskIntoConstraints = false
-        videoContainerView.translatesAutoresizingMaskIntoConstraints = false
-        saveAsButton.translatesAutoresizingMaskIntoConstraints = false
-        thumbnailImageView.translatesAutoresizingMaskIntoConstraints = false
-        playButton.translatesAutoresizingMaskIntoConstraints = false
+        [dismissButton, videoContainerView, saveAsButton, thumbnailImageView, playButton].forEach {
+            $0.translatesAutoresizingMaskIntoConstraints = false
+        }
         
         NSLayoutConstraint.activate([
             videoContainerView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
@@ -133,29 +123,24 @@ private extension VideoPreviewViewController {
             playButton.centerXAnchor.constraint(equalTo: videoContainerView.centerXAnchor),
             playButton.centerYAnchor.constraint(equalTo: videoContainerView.centerYAnchor),
             playButton.widthAnchor.constraint(equalToConstant: 64),
-            playButton.heightAnchor.constraint(equalToConstant: 64),
+            playButton.heightAnchor.constraint(equalToConstant: 64)
         ])
     }
     
     func setupPlayer() {
-        playerManager.prepare(with: videoURL)
-        
+        viewModel.prepareVideoPlayer { [weak self] image in
+            self?.thumbnailImageView.image = image
+        }
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(handleVideoEnded),
             name: .AVPlayerItemDidPlayToEndTime,
-            object: playerManager.player?.currentItem
+            object: viewModel.getPlayerLayer()?.player?.currentItem
         )
-        
-        playerManager.generateThumbnail(for: videoURL) { [weak self] image in
-            DispatchQueue.main.async {
-                self?.thumbnailImageView.image = image
-            }
-        }
     }
     
     func layoutPlayerLayer() {
-        guard let layer = playerManager.playerLayer else { return }
+        guard let layer = viewModel.getPlayerLayer() else { return }
         layer.frame = videoContainerView.bounds
         if layer.superlayer == nil {
             videoContainerView.layer.insertSublayer(layer, below: thumbnailImageView.layer)
@@ -167,52 +152,43 @@ private extension VideoPreviewViewController {
 private extension VideoPreviewViewController {
     
     @objc func didTapDismiss() {
-        playerManager.stop()
+        viewModel.stopPlayback()
         navigationController?.popViewController(animated: true)
     }
     
     @objc func didTapSaveAsButton() {
-        guard let thumbnailImage = thumbnailImageView.image else {
-            return
-        }
-        guard let imageData = thumbnailImage.jpegData(compressionQuality: 0.8) else {
-            return
-        }
         handleVideoTap()
         let saveDetailsVC = SaveDetailsViewController()
         saveDetailsVC.onSaveDetails = { [weak self] title, description in
-            let videoModel = VideoModel(id: UUID(), title: title, description: description, path: "\(String(describing: self?.videoURL))", date: Date.now, time: Int32(self?.videoTime ?? 0), thumbnail: imageData)
-            self?.videoRecordManager.create(videoModel: videoModel)
-            self?.navigationController?.popToRootViewController(animated: true)
+            self?.viewModel.saveVideo(title: title, description: description) {
+                self?.navigationController?.popToRootViewController(animated: true)
+            }
         }
         saveDetailsVC.modalPresentationStyle = .overFullScreen
         present(saveDetailsVC, animated: true)
-        
     }
     
     @objc func didTapPlayButton() {
         UIView.animate(withDuration: 0.25) {
             self.thumbnailImageView.alpha = 0
         }
-        
         playButton.isHidden = true
-        playerManager.togglePlayPause()
+        viewModel.handlePlayPause()
     }
     
     @objc func handleVideoTap() {
-        if playerManager.isPlaying {
+        if viewModel.isPlaying() {
             playButton.isHidden = false
-            playerManager.togglePlayPause()
+            viewModel.handlePlayPause()
         }
     }
     
-    @objc private func handleVideoEnded() {
-        playerManager.player?.seek(to: .zero)
-        playerManager.isPlaying = false
-        
+    @objc func handleVideoEnded() {
+        viewModel.seekToStart()
         DispatchQueue.main.async {
             self.playButton.isHidden = false
             self.thumbnailImageView.alpha = 1.0
         }
     }
 }
+
