@@ -66,7 +66,7 @@ class CameraViewController: UIViewController {
         recordButton.isEnabled = false
         
         // Dismiss Button
-        dismissButton.setImage(UIImage(systemName: "xmark"), for: .normal)
+        dismissButton.setImage(UIImage(named: "closeIcon")?.withRenderingMode(.alwaysOriginal), for: .normal)
         dismissButton.tintColor = .white
         dismissButton.addTarget(self, action: #selector(dismissView), for: .touchUpInside)
         
@@ -93,8 +93,8 @@ class CameraViewController: UIViewController {
             
             dismissButton.topAnchor.constraint(equalTo: view.layoutMarginsGuide.topAnchor, constant: 16),
             dismissButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
-            dismissButton.widthAnchor.constraint(equalToConstant: 40),
-            dismissButton.heightAnchor.constraint(equalToConstant: 40),
+            dismissButton.widthAnchor.constraint(equalToConstant: 24),
+            dismissButton.heightAnchor.constraint(equalToConstant: 24),
             
             videoTimerLabel.topAnchor.constraint(equalTo: view.layoutMarginsGuide.topAnchor, constant: 16),
             videoTimerLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor)
@@ -134,7 +134,6 @@ class CameraViewController: UIViewController {
     
     private func enableRecordingUI(_ isEnabled: Bool) {
         recordButton.isEnabled = isEnabled
-        recordButton.alpha = isEnabled ? 1.0 : 0.5
     }
     
     private func showCameraAccessAlert() {

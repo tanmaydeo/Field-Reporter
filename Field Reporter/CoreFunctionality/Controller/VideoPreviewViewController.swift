@@ -76,7 +76,7 @@ private extension VideoPreviewViewController {
     }
     
     func setupStyles() {
-        dismissButton.setImage(UIImage(systemName: "xmark.circle.fill"), for: .normal)
+        dismissButton.setImage(UIImage(named: "closeIcon")?.withRenderingMode(.alwaysOriginal), for: .normal)
         dismissButton.tintColor = .label
         dismissButton.addTarget(self, action: #selector(didTapDismiss), for: .touchUpInside)
         
@@ -105,10 +105,10 @@ private extension VideoPreviewViewController {
             videoContainerView.topAnchor.constraint(equalTo: view.layoutMarginsGuide.topAnchor),
             videoContainerView.bottomAnchor.constraint(equalTo: saveAsButton.topAnchor, constant: -16),
             
-            dismissButton.topAnchor.constraint(equalTo: videoContainerView.topAnchor, constant: 12),
+            dismissButton.topAnchor.constraint(equalTo: videoContainerView.topAnchor, constant: 16),
             dismissButton.trailingAnchor.constraint(equalTo: videoContainerView.trailingAnchor, constant: -16),
-            dismissButton.widthAnchor.constraint(equalToConstant: 50),
-            dismissButton.heightAnchor.constraint(equalToConstant: 50),
+            dismissButton.widthAnchor.constraint(equalToConstant: 24),
+            dismissButton.heightAnchor.constraint(equalToConstant: 24),
             
             saveAsButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 24),
             saveAsButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -24),
