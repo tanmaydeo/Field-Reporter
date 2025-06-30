@@ -10,21 +10,17 @@ import UIKit
 class MyGalleryViewController: UIViewController {
     
     private var myGalleryTableView: UITableView = UITableView()
-    private lazy var emptyDataView: EmptyDataView = EmptyDataView(inputMessage: AppConstants.emptyTableViewMessageTitle.rawValue)
+    private lazy var emptyDataView = EmptyDataView(inputMessage: AppConstants.emptyTableViewMessageTitle.rawValue)
     
-    private let videoRecordManager : VideoRecordManager = VideoRecordManager()
-    
-    private var myGalleryItems: [VideoModel] = []
-    private var allGalleryItems: [VideoModel] = []
-    
+    private let viewModel = MyGalleryViewModel()
     private let searchController = UISearchController()
     private var debounceWorkItem: DispatchWorkItem?
     
+    // MARK: - Lifecycle
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         setupNavigationBar()
-        myGalleryItems = videoRecordManager.fetch()
-        allGalleryItems = myGalleryItems
+        viewModel.loadVideos()
         updateViewVisibility()
     }
     
@@ -35,6 +31,7 @@ class MyGalleryViewController: UIViewController {
         setupConstraints()
     }
     
+    // MARK: - UI Setup
     private func setupNavigationBar() {
         navigationItem.title = AppConstants.myGalleryTableViewNavigationTitle.rawValue
         navigationController?.navigationBar.prefersLargeTitles = true
@@ -55,13 +52,12 @@ class MyGalleryViewController: UIViewController {
             button.heightAnchor.constraint(equalToConstant: 30)
         ])
         
-        let barButtonItem = UIBarButtonItem(customView: button)
-        navigationItem.rightBarButtonItem = barButtonItem
+        navigationItem.rightBarButtonItem = UIBarButtonItem(customView: button)
     }
     
     private func setupStyles() {
-        myGalleryTableView.backgroundColor = .systemBackground
         view.backgroundColor = .systemBackground
+        myGalleryTableView.backgroundColor = .systemBackground
     }
     
     private func setupHierarchy() {
@@ -70,8 +66,8 @@ class MyGalleryViewController: UIViewController {
         
         myGalleryTableView.dataSource = self
         myGalleryTableView.delegate = self
-        myGalleryTableView.register(VideoTableViewCell.self, forCellReuseIdentifier: AppConstants.videoCellReusableIdentifier.rawValue)
         myGalleryTableView.separatorStyle = .none
+        myGalleryTableView.register(VideoTableViewCell.self, forCellReuseIdentifier: AppConstants.videoCellReusableIdentifier.rawValue)
     }
     
     private func setupConstraints() {
@@ -90,80 +86,70 @@ class MyGalleryViewController: UIViewController {
     }
     
     private func updateViewVisibility() {
-        let hasData = !myGalleryItems.isEmpty
+        let hasData = viewModel.numberOfVideos() > 0
         myGalleryTableView.isHidden = !hasData
         emptyDataView.isHidden = hasData
         myGalleryTableView.reloadData()
     }
 }
 
-extension MyGalleryViewController : UITableViewDelegate, UITableViewDataSource {
+// MARK: - TableView DataSource & Delegate
+extension MyGalleryViewController: UITableViewDataSource, UITableViewDelegate {
+    
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return myGalleryItems.count
+        return viewModel.numberOfVideos()
     }
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        guard let commonCell = myGalleryTableView.dequeueReusableCell(withIdentifier: AppConstants.videoCellReusableIdentifier.rawValue, for: indexPath) as? VideoTableViewCell else {
+        
+        guard let cell = tableView.dequeueReusableCell(withIdentifier: AppConstants.videoCellReusableIdentifier.rawValue, for: indexPath) as? VideoTableViewCell else {
             return UITableViewCell()
         }
-        commonCell.selectionStyle = .none
-        commonCell.configureCell(myGalleryItems[indexPath.row])
-        return commonCell
+        
+        let video = viewModel.video(at: indexPath.row)
+        cell.selectionStyle = .none
+        cell.configureCell(video)
+        return cell
     }
     
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        print(myGalleryItems[indexPath.row].path)
+        let video = viewModel.video(at: indexPath.row)
+        print(video.path)
     }
     
     func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCell.EditingStyle, forRowAt indexPath: IndexPath) {
         if editingStyle == .delete {
-            print(videoRecordManager.delete(id: myGalleryItems[indexPath.row].id))
-            refreshTableView()
+            viewModel.deleteVideo(at: indexPath.row)
+            updateViewVisibility()
         }
     }
-    
 }
 
-extension MyGalleryViewController : UISearchResultsUpdating {
-    
+// MARK: - Search
+extension MyGalleryViewController: UISearchResultsUpdating {
     func updateSearchResults(for searchController: UISearchController) {
-        guard let query = searchController.searchBar.text?.trimmingCharacters(in: .whitespacesAndNewlines),
-              !query.isEmpty else {
-            myGalleryItems = allGalleryItems
+        guard let query = searchController.searchBar.text else {
+            viewModel.loadVideos()
             updateViewVisibility()
             return
         }
-        debounceWorkItem?.cancel()
         
+        debounceWorkItem?.cancel()
         let workItem = DispatchWorkItem { [weak self] in
-            self?.performSearch(query: query)
+            self?.viewModel.search(for: query)
+            DispatchQueue.main.async {
+                self?.updateViewVisibility()
+            }
         }
         debounceWorkItem = workItem
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: workItem)
     }
-    
-    private func performSearch(query: String) {
-        myGalleryItems = allGalleryItems.filter {
-            $0.title.lowercased().contains(query.lowercased())
-        }
-        updateViewVisibility()
-    }
-    
 }
 
-// MARK: @objc functions
+// MARK: - Navigation
 extension MyGalleryViewController {
-    
     @objc func captureVideo() {
         let cameraVC = CameraViewController()
-        self.navigationController?.pushViewController(cameraVC, animated: true)
-    }
-    
-    private func refreshTableView() {
-        DispatchQueue.main.async {
-            self.allGalleryItems = self.videoRecordManager.fetch()
-            self.myGalleryItems = self.allGalleryItems
-            self.updateViewVisibility()
-        }
+        navigationController?.pushViewController(cameraVC, animated: true)
     }
 }
