@@ -34,6 +34,7 @@ class CameraViewController: UIViewController {
         super.viewDidLoad()
         setupView()
         configureCaptureSession()
+        checkCameraPermission()
     }
     
     override func viewWillAppear(_ animated: Bool) {
@@ -67,6 +68,9 @@ class CameraViewController: UIViewController {
         recordButton.layer.masksToBounds = true
         recordButton.addTarget(self, action: #selector(startRecording), for: .touchDown)
         recordButton.addTarget(self, action: #selector(stopRecording), for: [.touchUpInside, .touchUpOutside, .touchCancel])
+        recordButton.isEnabled = false
+        recordButton.alpha = 0.5
+
         
         // Dismiss Button
         dismissButton.setImage(UIImage(systemName: "xmark"), for: .normal)
@@ -168,6 +172,60 @@ extension CameraViewController {
         view.layer.insertSublayer(preview, at: 0)
         previewLayer = preview
     }
+    
+    private func checkCameraPermission() {
+        switch AVCaptureDevice.authorizationStatus(for: .video) {
+        case .authorized:
+            setupView()
+            configureCaptureSession()
+            enableRecordingUI(true)
+            
+        case .notDetermined:
+            AVCaptureDevice.requestAccess(for: .video) { [weak self] granted in
+                DispatchQueue.main.async {
+                    if granted {
+                        self?.setupView()
+                        self?.configureCaptureSession()
+                        self?.enableRecordingUI(true)
+                    } else {
+                        self?.enableRecordingUI(false)
+                        self?.showCameraAccessAlert()
+                    }
+                }
+            }
+            
+        case .denied, .restricted:
+            enableRecordingUI(false)
+            showCameraAccessAlert()
+            
+        @unknown default:
+            enableRecordingUI(false)
+            showCameraAccessAlert()
+        }
+    }
+    
+    private func enableRecordingUI(_ isEnabled: Bool) {
+        recordButton.isEnabled = isEnabled
+        recordButton.alpha = isEnabled ? 1.0 : 0.5
+    }
+    
+    private func showCameraAccessAlert() {
+        let alert = UIAlertController(
+            title: AppConstants.cameraPermissionNotGrantedTitle.rawValue,
+            message: AppConstants.cameraPermissionNotGrantedDescription.rawValue,
+            preferredStyle: .alert
+        )
+        
+        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel, handler: nil))
+        
+        alert.addAction(UIAlertAction(title: "Settings", style: .default, handler: { _ in
+            if let appSettings = URL(string: UIApplication.openSettingsURLString) {
+                UIApplication.shared.open(appSettings)
+            }
+        }))
+        
+        present(alert, animated: true)
+    }
 }
 
 // MARK: - Recording Logic
@@ -248,7 +306,7 @@ extension CameraViewController: AVCaptureFileOutputRecordingDelegate {
                 print("Recording error: \(error.localizedDescription)")
             } else {
                 self.navigationController?.pushViewController(
-                    VideoPreviewViewController(videoURL: outputFileURL),
+                    VideoPreviewViewController(videoURL: outputFileURL, videoTime: self.elapsedSeconds),
                     animated: false
                 )
             }

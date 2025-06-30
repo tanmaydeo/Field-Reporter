@@ -13,5 +13,6 @@ struct VideoModel {
     let description : String
     let path : String
     let date : Date
+    let time : Int32
     let thumbnail : Data
 }

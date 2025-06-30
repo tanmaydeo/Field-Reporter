@@ -2,7 +2,7 @@
 //  CDVideoRecord+CoreDataProperties.swift
 //  Field Reporter
 //
-//  Created by Tanmay Deo on 29/06/25.
+//  Created by Tanmay Deo on 30/06/25.
 //
 //
 
@@ -21,6 +21,8 @@ extension CDVideoRecord {
     @NSManaged public var videoDescription: String?
     @NSManaged public var videoPath: String?
     @NSManaged public var videoTitle: String?
+    @NSManaged public var videoTimeInterval: Int32
+    @NSManaged public var videoThumbnail: Data?
 
 }
 

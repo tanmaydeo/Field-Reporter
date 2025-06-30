@@ -15,11 +15,16 @@ class MyGalleryViewController: UIViewController {
     private let videoRecordManager : VideoRecordManager = VideoRecordManager()
     
     private var myGalleryItems: [VideoModel] = []
+    private var allGalleryItems: [VideoModel] = []
+    
+    private let searchController = UISearchController()
+    private var debounceWorkItem: DispatchWorkItem?
     
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         setupNavigationBar()
         myGalleryItems = videoRecordManager.fetch()
+        allGalleryItems = myGalleryItems
         updateViewVisibility()
     }
     
@@ -35,8 +40,23 @@ class MyGalleryViewController: UIViewController {
         navigationController?.navigationBar.prefersLargeTitles = true
         navigationController?.navigationBar.isHidden = false
         
-        let rightBarButton = UIBarButtonItem(title: AppConstants.addNewVideoTitle.rawValue , style: .plain, target: self, action: #selector(captureVideo))
-        navigationItem.rightBarButtonItem = rightBarButton
+        navigationItem.searchController = searchController
+        searchController.searchResultsUpdater = self
+        searchController.searchBar.placeholder = "Search for video title"
+        searchController.obscuresBackgroundDuringPresentation = false
+        
+        let button = UIButton(type: .system)
+        let image = UIImage(named: "addIcon")?.withRenderingMode(.alwaysOriginal)
+        button.setImage(image, for: .normal)
+        button.addTarget(self, action: #selector(captureVideo), for: .touchUpInside)
+        button.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            button.widthAnchor.constraint(equalToConstant: 30),
+            button.heightAnchor.constraint(equalToConstant: 30)
+        ])
+        
+        let barButtonItem = UIBarButtonItem(customView: button)
+        navigationItem.rightBarButtonItem = barButtonItem
     }
     
     private func setupStyles() {
@@ -91,6 +111,10 @@ extension MyGalleryViewController : UITableViewDelegate, UITableViewDataSource {
         return commonCell
     }
     
+    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        print(myGalleryItems[indexPath.row].path)
+    }
+    
     func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCell.EditingStyle, forRowAt indexPath: IndexPath) {
         if editingStyle == .delete {
             print(videoRecordManager.delete(id: myGalleryItems[indexPath.row].id))
@@ -100,18 +124,45 @@ extension MyGalleryViewController : UITableViewDelegate, UITableViewDataSource {
     
 }
 
+extension MyGalleryViewController : UISearchResultsUpdating {
+    
+    func updateSearchResults(for searchController: UISearchController) {
+        guard let query = searchController.searchBar.text?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !query.isEmpty else {
+            myGalleryItems = allGalleryItems
+            updateViewVisibility()
+            return
+        }
+        debounceWorkItem?.cancel()
+        
+        let workItem = DispatchWorkItem { [weak self] in
+            self?.performSearch(query: query)
+        }
+        debounceWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: workItem)
+    }
+    
+    private func performSearch(query: String) {
+        myGalleryItems = allGalleryItems.filter {
+            $0.title.lowercased().contains(query.lowercased())
+        }
+        updateViewVisibility()
+    }
+    
+}
+
 // MARK: @objc functions
 extension MyGalleryViewController {
     
     @objc func captureVideo() {
-        let cameraVC = VideoPreviewViewController()
+        let cameraVC = CameraViewController()
         self.navigationController?.pushViewController(cameraVC, animated: true)
     }
     
     private func refreshTableView() {
         DispatchQueue.main.async {
-            self.myGalleryItems = self.videoRecordManager.fetch()
-            self.myGalleryTableView.reloadData()
+            self.allGalleryItems = self.videoRecordManager.fetch()
+            self.myGalleryItems = self.allGalleryItems
             self.updateViewVisibility()
         }
     }

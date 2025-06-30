@@ -18,11 +18,14 @@ class VideoPreviewViewController: UIViewController {
     
     // MARK: - Properties
     private let videoURL: URL
+    private let videoTime : Int
     private let playerManager = VideoPlayerManager()
+    private let videoRecordManager = VideoRecordManager()
     
     // MARK: - Init
-    init(videoURL: URL) {
+    init(videoURL: URL, videoTime : Int) {
         self.videoURL = videoURL
+        self.videoTime = videoTime
         super.init(nibName: nil, bundle: nil)
     }
     
@@ -165,7 +168,22 @@ private extension VideoPreviewViewController {
     }
     
     @objc func didTapSaveAsButton() {
-        // Placeholder for save action
+        guard let thumbnailImage = thumbnailImageView.image else {
+            return
+        }
+        guard let imageData = thumbnailImage.jpegData(compressionQuality: 0.8) else {
+            return
+        }
+        handleVideoTap()
+        let saveDetailsVC = SaveDetailsViewController()
+        saveDetailsVC.onSaveDetails = { [weak self] title, description in
+            let videoModel = VideoModel(id: UUID(), title: title, description: description, path: "\(String(describing: self?.videoURL))", date: Date.now, time: Int32(self?.videoTime ?? 0), thumbnail: imageData)
+            self?.videoRecordManager.create(videoModel: videoModel)
+            self?.navigationController?.popToRootViewController(animated: true)
+        }
+        saveDetailsVC.modalPresentationStyle = .overFullScreen
+        present(saveDetailsVC, animated: true)
+        
     }
     
     @objc func didTapPlayButton() {

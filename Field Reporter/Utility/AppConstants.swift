@@ -17,4 +17,8 @@ enum AppConstants : String {
     //Empty Table Message
     case emptyTableViewMessageTitle = "It's empty. Add something!"
     
+    //Camera VC
+    case cameraPermissionNotGrantedTitle = "Camera Access Needed"
+    case cameraPermissionNotGrantedDescription = "Please provide us the camera permission in Settings to record videos."
+    
 }

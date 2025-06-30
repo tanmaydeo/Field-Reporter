@@ -15,8 +15,24 @@ class VideoTableViewCell: UITableViewCell {
     private var videoTitleLabel : UILabel = UILabel()
     private var videoDescriptionLabel : UILabel = UILabel()
     private var videoDescriptionStackViewTopSpaceContainerView : UIView = UIView()
-    private var videoTimeLabel : UILabel = UILabel()
+    private var videoDateTimeLabel : UILabel = UILabel()
     private var seperatorLineView : UIView = UIView()
+    
+    private let imageDarkOverlay: UIView = {
+        let overlay = UIView()
+        overlay.backgroundColor = UIColor.black.withAlphaComponent(0.4)
+        overlay.isUserInteractionEnabled = false
+        overlay.translatesAutoresizingMaskIntoConstraints = false
+        return overlay
+    }()
+    
+    private let playImageOverlay : UIImageView = {
+        let overlayImage = UIImageView()
+        overlayImage.image = UIImage(named: "play")
+        overlayImage.isUserInteractionEnabled = false
+        overlayImage.translatesAutoresizingMaskIntoConstraints = false
+        return overlayImage
+    }()
     
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
@@ -38,12 +54,14 @@ class VideoTableViewCell: UITableViewCell {
         contentView.addSubview(seperatorLineView)
         
         videoInfoStackView.addArrangedSubview(videoImageView)
+        videoImageView.addSubview(imageDarkOverlay)
+        videoImageView.addSubview(playImageOverlay)
         videoInfoStackView.addArrangedSubview(videoDescriptionStackView)
         
         videoDescriptionStackView.addArrangedSubview(videoDescriptionStackViewTopSpaceContainerView)
         videoDescriptionStackView.addArrangedSubview(videoTitleLabel)
         videoDescriptionStackView.addArrangedSubview(videoDescriptionLabel)
-        videoDescriptionStackView.addArrangedSubview(videoTimeLabel)
+        videoDescriptionStackView.addArrangedSubview(videoDateTimeLabel)
     }
     
     func setupStyles() {
@@ -66,7 +84,17 @@ class VideoTableViewCell: UITableViewCell {
             seperatorLineView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 24),
             seperatorLineView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -24),
             seperatorLineView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -4),
-            seperatorLineView.heightAnchor.constraint(equalToConstant: 0.5)
+            seperatorLineView.heightAnchor.constraint(equalToConstant: 0.8),
+            
+            imageDarkOverlay.leadingAnchor.constraint(equalTo: videoImageView.leadingAnchor),
+            imageDarkOverlay.trailingAnchor.constraint(equalTo: videoImageView.trailingAnchor),
+            imageDarkOverlay.topAnchor.constraint(equalTo: videoImageView.topAnchor),
+            imageDarkOverlay.bottomAnchor.constraint(equalTo: videoImageView.bottomAnchor),
+            
+            playImageOverlay.heightAnchor.constraint(equalToConstant: 24),
+            playImageOverlay.widthAnchor.constraint(equalToConstant: 24),
+            playImageOverlay.centerYAnchor.constraint(equalTo: videoImageView.centerYAnchor),
+            playImageOverlay.centerXAnchor.constraint(equalTo: videoImageView.centerXAnchor)
         ])
     }
     
@@ -93,7 +121,6 @@ extension VideoTableViewCell {
     }
     
     func setupImageStyling() {
-        videoImageView.image = UIImage(named: "placeholder")
         videoImageView.layer.cornerRadius = 8
         videoImageView.clipsToBounds = true
     }
@@ -104,13 +131,10 @@ extension VideoTableViewCell {
         
         videoDescriptionLabel.textColor = UIColor.darkGray
         videoDescriptionLabel.font = UIFont.systemFont(ofSize: 14, weight: .medium)
-        videoDescriptionLabel.numberOfLines = 3
+        videoDescriptionLabel.numberOfLines = 0
         
-        videoTimeLabel.text = "34 sec"
-        videoTimeLabel.textColor = UIColor.darkGray
-        videoTimeLabel.font = UIFont.systemFont(ofSize: 14, weight: .medium)
-        
-        videoDescriptionStackViewTopSpaceContainerView.backgroundColor = .blue
+        videoDateTimeLabel.textColor = UIColor.darkGray
+        videoDateTimeLabel.font = UIFont.systemFont(ofSize: 14, weight: .medium)
         
         seperatorLineView.backgroundColor = AppColors.seperatorViewBackgroundColor
         seperatorLineView.layer.cornerRadius = seperatorLineView.frame.width / 2
@@ -118,7 +142,36 @@ extension VideoTableViewCell {
     }
     
     func configureCell(_ video : VideoModel) {
+        //date: Date.now
         videoTitleLabel.text = video.title
         videoDescriptionLabel.text = video.description
+        loadThumbnailImage(from: video.thumbnail)
+        videoDateTimeLabel.text = formattedTimeAndDate(seconds: video.time, date: video.date)
     }
+}
+
+
+//Utility functions
+extension VideoTableViewCell {
+    
+    private func loadThumbnailImage(from data: Data) {
+        if let image = UIImage(data: data) {
+            DispatchQueue.main.async {
+                self.videoImageView.image = image
+            }
+        } else {
+            DispatchQueue.main.async {
+                self.videoImageView.image = UIImage(named: "placeholder")
+            }
+        }
+    }
+    
+    private func formattedTimeAndDate(seconds: Int32, date: Date) -> String {
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "d MMMM"
+        
+        let dateString = dateFormatter.string(from: date)
+        return "\(seconds) sec, \(dateString)"
+    }
+
 }

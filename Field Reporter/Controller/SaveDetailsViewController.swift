@@ -90,11 +90,14 @@ private extension SaveDetailsViewController {
         // Title Field
         titleField.placeholder = "Enter title"
         titleField.borderStyle = .roundedRect
+        titleField.delegate = self
+        titleField.addTarget(self, action: #selector(textFieldDidChange), for: .editingChanged)
         
         // Description Label
         descriptionLabel.text = "Description"
         descriptionLabel.font = .boldSystemFont(ofSize: 16)
         descriptionLabel.textColor = .label
+        descriptionField.delegate = self
         
         // Description Field
         descriptionField.font = .systemFont(ofSize: 15)
@@ -105,6 +108,8 @@ private extension SaveDetailsViewController {
         // Save Button
         saveButton.setTitle("Save", for: .normal)
         saveButton.addTarget(self, action: #selector(didTapSave), for: .touchUpInside)
+        saveButton.isEnabled = false
+        saveButton.alpha = 0.5
     }
     
     func setupConstraints() {
@@ -143,14 +148,34 @@ private extension SaveDetailsViewController {
     }
 }
 
+extension SaveDetailsViewController : UITextFieldDelegate, UITextViewDelegate {
+    
+    @objc private func textFieldDidChange() {
+        validateInputFields()
+    }
+    
+    func textViewDidChange(_ textView: UITextView) {
+        validateInputFields()
+    }
+    
+    private func validateInputFields() {
+        let isTitleEmpty = titleField.text?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true
+        let isDescriptionEmpty = descriptionField.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        
+        saveButton.isEnabled = !isTitleEmpty && !isDescriptionEmpty
+        saveButton.alpha = saveButton.isEnabled ? 1.0 : 0.5
+    }
+    
+}
+
 // MARK: - Actions
 private extension SaveDetailsViewController {
     
     @objc func didTapSave() {
         let titleText = titleField.text ?? ""
         let descriptionText = descriptionField.text ?? ""
-        onSaveDetails?(titleText, descriptionText)
         dismiss(animated: true)
+        onSaveDetails?(titleText, descriptionText)
     }
     
     @objc func didTapClose() {
